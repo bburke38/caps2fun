@@ -901,16 +901,7 @@ class Caps2Fun():
 
         #update gradient for non shape DVs
         nfunc = len(self.functions)
-        self.structGrad = np.zeros((nfunc, self.nstructDV))
-        
-        for funcInd in range(nfunc):
-            ct = 0
-            for DV in self.DVdict:
-                dvname = DV["name"]
-                dvind = DV["ind"]
-                if (not(DV["type"] == "shape")): 
-                    self.structGrad[funcInd, dvind] = f2fgrads[funcInd][ct].real
-                    ct += 1        
+        self.structGrad = np.zeros((nfunc, self.nstructDV))      
 
         if (self.nshapeDV > 0):
             #get aero and struct mesh sensitivities for shape DVs
@@ -1257,7 +1248,6 @@ class Caps2Fun():
         self.cwrite("initialized shape gradient\n")
 
     def write_struct_sens_file(self):
-
         #deprecated method of writing struct sens file
 
         #print struct mesh sens to struct mesh sens file
@@ -1301,18 +1291,22 @@ class Caps2Fun():
         self.model.write_sensitivity_file(self.comm, tacs_sens_file, discipline="struct")
 
         #run aim postanalysis
-        self.tacsAim.postAnalysis()
+        self.tacsAim.postAnalysis() # ESP/CAPS read the sens file and computes chain-rule product
         self.cwrite("completed tacsAim postAnalysis(), ")
 
         #update shape DV derivatives from struct mesh part
         for funcInd in range(self.nfunc):
             funcKey = "func#" + str(funcInd)
             dvct = 0
+            struct_ct = 0
             for DV in self.DVdict:
                 dvname = DV["name"]
                 if (DV["type"] == "shape"): 
                     self.shapeGrad[funcInd, dvct] += self.tacsAim.dynout[funcKey].deriv(dvname)
                     dvct += 1
+                elif (DV["type"] == "struct"):
+                    self.structGrad[funcInd, struct_ct] += self.tacsAim.dynout[funcKey].deriv(dvname)
+                    struct_ct += 1
 
         #update status
         self.cwrite("finished struct mesh contribution to shape DVs\n")
